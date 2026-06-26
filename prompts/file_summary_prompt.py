@@ -1,9 +1,11 @@
 from langchain_core.prompts import ChatPromptTemplate
+
+
 def build_file_summary_prompt() -> ChatPromptTemplate:
- return ChatPromptTemplate.from_messages([
- (
- "system",
- """
+    return ChatPromptTemplate.from_messages([
+        (
+            "system",
+            """
 You are a senior software engineer and code reviewer.
 Your task is to analyze ONE file from a repository and return ONLY valid JSON.
 STRICT RULES:
@@ -19,10 +21,10 @@ STRICT RULES:
 The JSON MUST follow this schema exactly:
 {format_instructions}
 """
- ),
- (
- "human",
- """
+        ),
+        (
+            "human",
+            """
 Analyze this repository file and create a structured file summary.
 Repository name: {repo_name}
 File path: {file_path}
@@ -37,6 +39,7 @@ File content:
 {code}
 ```
 """
- )
- ])
+        )
+    ])
+
  

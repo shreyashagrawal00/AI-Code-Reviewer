@@ -13,3 +13,4 @@ sentence-transformers>=3.0.1
 faiss-cpu>=1.8.0.post1
 
 tiktoken>=0.7.0
+json-repair>=0.30.0

@@ -84,6 +84,7 @@ def extract_json_candidate(text: str) -> str:
     - <think>...</think>
     - fenced JSON
     - raw JSON with trailing text
+    - malformed JSON (via json_repair)
     """
     if not text or not text.strip():
         raise ValueError("Empty model output.")
@@ -101,6 +102,15 @@ def extract_json_candidate(text: str) -> str:
     # Case 2: extract first balanced JSON object
     try:
         return extract_first_balanced_json(cleaned)
+    except Exception:
+        pass
+
+    # Case 3: json_repair as final fallback
+    try:
+        from json_repair import repair_json
+        repaired = repair_json(cleaned)
+        json.loads(repaired)  # validate
+        return repaired
     except Exception:
         pass
 

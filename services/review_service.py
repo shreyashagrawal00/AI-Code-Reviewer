@@ -30,13 +30,14 @@ def extract_json_candidate(text: str) -> str:
     """
     Try to extract valid JSON from raw LLM output.
     Handles cases where the model adds extra text or wraps JSON in code fences.
+    Uses json_repair as a final fallback for malformed-but-fixable JSON.
     """
     if not text:
         raise ValueError("Empty model output.")
 
     cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
-    # Case 1: whole output is already JSON
+    # Case 1: whole output is already valid JSON
     try:
         json.loads(cleaned)
         return cleaned
@@ -63,15 +64,52 @@ def extract_json_candidate(text: str) -> str:
         except Exception:
             pass
 
-    # Case 4: find first {...} block
-    obj_match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-    if obj_match:
-        candidate = obj_match.group(0).strip()
-        try:
-            json.loads(candidate)
-            return candidate
-        except Exception:
-            pass
+    # Case 4: balanced brace extraction
+    start = cleaned.find("{")
+    if start != -1:
+        depth = 0
+        in_string = False
+        escape = False
+        for i in range(start, len(cleaned)):
+            ch = cleaned[i]
+            if in_string:
+                if escape:
+                    escape = False
+                elif ch == "\\":
+                    escape = True
+                elif ch == '"':
+                    in_string = False
+                continue
+            if ch == '"':
+                in_string = True
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    candidate = cleaned[start:i + 1]
+                    try:
+                        json.loads(candidate)
+                        return candidate
+                    except Exception:
+                        # Case 5: try json_repair on the extracted block
+                        try:
+                            from json_repair import repair_json
+                            repaired = repair_json(candidate)
+                            json.loads(repaired)  # validate
+                            return repaired
+                        except Exception:
+                            pass
+                    break
+
+    # Case 6: json_repair on the whole cleaned output as last resort
+    try:
+        from json_repair import repair_json
+        repaired = repair_json(cleaned)
+        json.loads(repaired)  # validate the repair worked
+        return repaired
+    except Exception:
+        pass
 
     raise ValueError("Could not extract valid JSON from model output.")
 

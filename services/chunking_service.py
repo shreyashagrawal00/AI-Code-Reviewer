@@ -1,5 +1,4 @@
 from typing import Dict, List
-from utils.constants import CHUNK_SIZE, CHUNK_OVERLAP
 from utils.constants import CHUNK_SIZE, CHUNK_OVERLAP, MAX_CHARS_PER_CHUNKED_FILE
 
 

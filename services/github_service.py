@@ -1,6 +1,5 @@
 import requests
 from urllib.parse import urlparse
-from utils.constants import ALLOWED_CODE_EXTENSIONS, IGNORE_DIRS, MAX_REPO_FILES, MAX_CHARS_PER_FILE
 
 from utils.constants import (
     ALLOWED_CODE_EXTENSIONS,

@@ -1,9 +1,11 @@
 from langchain_core.prompts import ChatPromptTemplate
+
+
 def build_review_prompt() -> ChatPromptTemplate:
- return ChatPromptTemplate.from_messages([
- (
- "system",
- """
+    return ChatPromptTemplate.from_messages([
+        (
+            "system",
+            """
 You are a senior software engineer, debugging expert, and code reviewer.
 Your task is to review a SINGLE code snippet/file and return ONLY valid JSON.
 STRICT RULES:
@@ -13,7 +15,7 @@ STRICT RULES:
 - Do NOT add explanations before or after JSON
 - Follow the schema exactly using the provided format instructions
 - Understand what the code is trying to do before judging it
-- - Detect syntax errors, runtime errors, logical bugs, edge-case issues, risky practices, and weak code quality
+- Detect syntax errors, runtime errors, logical bugs, edge-case issues, risky practices, and weak code quality
 - Preserve the original purpose of the code
 - If only a small fix is needed, do not unnecessarily rewrite everything
 - If the code is incomplete, still infer the intended purpose and review it as best as possible
@@ -23,10 +25,10 @@ STRICT RULES:
 The JSON MUST follow this schema exactly:
 {format_instructions}
 """
- ),
- (
- "human",
- """
+        ),
+        (
+            "human",
+            """
 Review this code.
 Language: {language}
 Expected purpose of code: {task_description}
@@ -42,6 +44,7 @@ Code:
 {code}
 ```
 """
- )
- ])
+        )
+    ])
+
 

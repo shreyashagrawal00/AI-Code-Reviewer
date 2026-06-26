@@ -86,6 +86,15 @@ def extract_json_candidate(text: str) -> str:
     except Exception:
         pass
 
+    # json_repair as final fallback
+    try:
+        from json_repair import repair_json
+        repaired = repair_json(cleaned)
+        json.loads(repaired)  # validate
+        return repaired
+    except Exception:
+        pass
+
     raise ValueError(f"Invalid json output: {text}")
 
 
@@ -112,7 +121,7 @@ def build_repo_context(
 
     lines.append("Files included:")
     for f in file_records:
-        path = f.get("path", "unknown")
+        path = f.get("file_path", "unknown")
         language = f.get("language", "Unknown")
         char_count = len(f.get("content", "") or "")
         lines.append(f"- {path} | language={language} | chars={char_count}")

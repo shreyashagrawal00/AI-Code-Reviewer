@@ -26,7 +26,7 @@ from services.vector_store_service import (
     retrieve_relevant_chunks,
     format_retrieved_chunks,
 )
-from services.repo_qa_service import answer_repo_question
+from services.assistant_service import AssistantService
 
 load_dotenv()
 
@@ -43,30 +43,70 @@ st.set_page_config(
 # CUSTOM CSS
 # =========================================================
 st.markdown("""
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-    .main {
-        background-color: #0e1117;
+    /* ── Global ─────────────────────────────────────────── */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stSidebar"], .main {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
+    .main {
+        background: linear-gradient(180deg, #080b14 0%, #0d1117 40%, #0a0e1a 100%);
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.25); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.45); }
+
+    /* ── Hero Card ──────────────────────────────────────── */
     .hero-card {
-        background: linear-gradient(135deg, #111827, #1f2937);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 18px;
-        padding: 22px;
-        margin-bottom: 18px;
+        background: linear-gradient(135deg, rgba(99,102,241,0.07) 0%, rgba(14,165,233,0.05) 50%, rgba(16,185,129,0.03) 100%);
+        border: 1px solid rgba(99,102,241,0.15);
+        border-radius: 22px;
+        padding: 36px 32px;
+        margin-bottom: 24px;
+        position: relative;
+        overflow: hidden;
+        backdrop-filter: blur(20px);
+    }
+
+    .hero-card::before {
+        content: '';
+        position: absolute;
+        top: -50%; left: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(ellipse at 30% 50%, rgba(99,102,241,0.06) 0%, transparent 60%),
+                    radial-gradient(ellipse at 70% 50%, rgba(14,165,233,0.04) 0%, transparent 60%);
+        animation: heroGlow 10s ease-in-out infinite;
+        pointer-events: none;
+    }
+
+    @keyframes heroGlow {
+        0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.6; }
+        33% { transform: translate(2%, -1%) rotate(1deg); opacity: 1; }
+        66% { transform: translate(-1%, 1%) rotate(-0.5deg); opacity: 0.8; }
     }
 
     .hero-title {
-        font-size: 30px;
-        font-weight: 800;
-        color: #ffffff;
-        margin-bottom: 6px;
+        font-size: 36px;
+        font-weight: 900;
+        background: linear-gradient(135deg, #ffffff 0%, #c7d2fe 40%, #a5b4fc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 10px;
+        letter-spacing: -0.6px;
+        position: relative;
     }
 
     .hero-subtitle {
-        color: #c9d1d9;
+        color: #94a3b8;
         font-size: 15px;
-        margin-bottom: 14px;
+        line-height: 1.65;
+        margin-bottom: 20px;
+        font-weight: 400;
+        max-width: 700px;
     }
 
     .badge-row {
@@ -76,110 +116,306 @@ st.markdown("""
     }
 
     .badge {
-        background: rgba(68, 136, 255, 0.16);
-        color: #9cc0ff;
-        border: 1px solid rgba(68, 136, 255, 0.25);
-        padding: 6px 12px;
+        background: rgba(99,102,241,0.08);
+        color: #a5b4fc;
+        border: 1px solid rgba(99,102,241,0.18);
+        padding: 6px 14px;
         border-radius: 999px;
-        font-size: 12px;
-        font-weight: 700;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(8px);
     }
 
+    .badge:hover {
+        background: rgba(99,102,241,0.18);
+        border-color: rgba(99,102,241,0.35);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(99,102,241,0.12);
+    }
+
+    /* ── Review Cards ───────────────────────────────────── */
     .review-card {
-        background-color: #161b22;
-        border-radius: 14px;
-        padding: 18px;
-        margin: 10px 0;
-        border: 1px solid rgba(255,255,255,0.06);
+        background: rgba(15,23,42,0.55);
+        border-radius: 16px;
+        padding: 22px;
+        margin: 12px 0;
+        border: 1px solid rgba(255,255,255,0.05);
         border-left: 4px solid;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+        backdrop-filter: blur(16px);
+        box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+        transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .repo-card { border-left-color: #4488ff; }
-    .issue-card { border-left-color: #ff4d4f; }
-    .strength-card { border-left-color: #00cc88; }
-    .file-card { border-left-color: #ffaa00; }
-    .answer-card { border-left-color: #7c4dff; }
-    .code-card { border-left-color: #00bcd4; }
+    .review-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.22);
+        border-color: rgba(255,255,255,0.10);
+    }
+
+    .review-card h4 {
+        color: #e2e8f0;
+        font-weight: 700;
+        letter-spacing: -0.2px;
+    }
+
+    .review-card p {
+        color: #94a3b8;
+        line-height: 1.65;
+        font-size: 14px;
+    }
+
+    .repo-card    { border-left-color: #6366f1; }
+    .issue-card   { border-left-color: #ef4444; }
+    .strength-card{ border-left-color: #10b981; }
+    .file-card    { border-left-color: #f59e0b; }
+    .answer-card  { border-left-color: #8b5cf6; }
+    .code-card    { border-left-color: #06b6d4; }
     .explanation-card { border-left-color: #f59e0b; }
 
+    .repo-card:hover    { border-left-color: #818cf8; box-shadow: 0 8px 32px rgba(99,102,241,0.08); }
+    .issue-card:hover   { border-left-color: #f87171; box-shadow: 0 8px 32px rgba(239,68,68,0.06); }
+    .strength-card:hover{ border-left-color: #34d399; box-shadow: 0 8px 32px rgba(16,185,129,0.06); }
+    .file-card:hover    { border-left-color: #fbbf24; box-shadow: 0 8px 32px rgba(245,158,11,0.06); }
+    .code-card:hover    { border-left-color: #22d3ee; box-shadow: 0 8px 32px rgba(6,182,212,0.06); }
+
+    /* ── Metric Strip ───────────────────────────────────── */
     .metric-strip {
         display: flex;
         flex-wrap: wrap;
-        gap: 12px;
-        margin: 8px 0 18px 0;
+        gap: 14px;
+        margin: 12px 0 24px 0;
     }
 
     .metric-chip {
-        background: #111827;
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 14px;
-        padding: 12px 14px;
-        min-width: 150px;
+        background: rgba(15,23,42,0.55);
+        border: 1px solid rgba(99,102,241,0.10);
+        border-radius: 16px;
+        padding: 18px 22px;
+        min-width: 155px;
+        flex: 1;
+        backdrop-filter: blur(12px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .metric-chip:hover {
+        border-color: rgba(99,102,241,0.28);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(99,102,241,0.06);
     }
 
     .metric-label {
-        color: #9ca3af;
-        font-size: 12px;
-        margin-bottom: 4px;
+        color: #64748b;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 6px;
     }
 
     .metric-value {
-        color: #ffffff;
-        font-size: 18px;
+        color: #e2e8f0;
+        font-size: 21px;
         font-weight: 800;
+        letter-spacing: -0.3px;
     }
 
+    /* ── Buttons ────────────────────────────────────────── */
     .stButton button {
         width: 100%;
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
         color: white;
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 700;
-        border-radius: 12px;
-        padding: 10px 14px;
+        border-radius: 14px;
+        padding: 12px 16px;
         border: none;
+        letter-spacing: 0.3px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 16px rgba(99,102,241,0.20);
     }
 
     .stButton button:hover {
-        background: linear-gradient(135deg, #1d4ed8, #1e40af);
+        background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
         color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 8px 28px rgba(99,102,241,0.30);
     }
 
+    .stButton button:active {
+        transform: translateY(0px);
+        box-shadow: 0 2px 8px rgba(99,102,241,0.18);
+    }
+
+    /* ── Severity Pills ─────────────────────────────────── */
     .severity-pill {
-        display: inline-block;
-        padding: 4px 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 14px;
         border-radius: 999px;
-        font-size: 12px;
+        font-size: 10px;
         font-weight: 700;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         margin-right: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        transition: all 0.2s ease;
     }
 
     .sev-high {
-        background: rgba(255, 77, 79, 0.18);
-        color: #ff6b6b;
+        background: rgba(239,68,68,0.10);
+        color: #fca5a5;
+        border: 1px solid rgba(239,68,68,0.18);
     }
 
     .sev-medium {
-        background: rgba(255, 170, 0, 0.18);
-        color: #ffb84d;
+        background: rgba(245,158,11,0.10);
+        color: #fcd34d;
+        border: 1px solid rgba(245,158,11,0.18);
     }
 
     .sev-low {
-        background: rgba(0, 204, 136, 0.18);
-        color: #4dffb8;
+        background: rgba(16,185,129,0.10);
+        color: #6ee7b7;
+        border: 1px solid rgba(16,185,129,0.18);
     }
 
     .muted-note {
-        color: #9ca3af;
-        font-size: 13px;
+        color: #64748b;
+        font-size: 14px;
+        line-height: 1.6;
     }
 
     .section-title {
-        font-size: 22px;
+        font-size: 24px;
         font-weight: 800;
-        margin: 6px 0 10px 0;
+        margin: 10px 0 16px 0;
+        background: linear-gradient(135deg, #e2e8f0, #94a3b8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -0.3px;
+    }
+
+    /* ── Tabs ───────────────────────────────────────────── */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2px;
+        background: rgba(15,23,42,0.5);
+        border-radius: 16px;
+        padding: 5px;
+        border: 1px solid rgba(99,102,241,0.08);
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 12px;
+        padding: 10px 22px;
+        font-weight: 600;
+        font-size: 13px;
+        color: #64748b;
+        transition: all 0.3s ease;
+    }
+
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #cbd5e1;
+        background: rgba(99,102,241,0.06);
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: rgba(99,102,241,0.12) !important;
+        color: #a5b4fc !important;
+        border-bottom: none !important;
+    }
+
+    /* ── Inputs ─────────────────────────────────────────── */
+    .stTextArea textarea,
+    .stTextInput input {
+        background: rgba(15,23,42,0.5) !important;
+        border: 1px solid rgba(99,102,241,0.12) !important;
+        border-radius: 12px !important;
+        color: #e2e8f0 !important;
+        font-size: 14px !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .stTextArea textarea:focus,
+    .stTextInput input:focus {
+        border-color: rgba(99,102,241,0.35) !important;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.08) !important;
+    }
+
+    .stSelectbox > div > div {
+        background: rgba(15,23,42,0.5) !important;
+        border: 1px solid rgba(99,102,241,0.12) !important;
+        border-radius: 12px !important;
+    }
+
+    /* ── Chat ───────────────────────────────────────────── */
+    .stChatMessage {
+        border-radius: 16px !important;
+        border: 1px solid rgba(255,255,255,0.04) !important;
+        backdrop-filter: blur(8px);
+    }
+
+    .stChatInputContainer {
+        border-radius: 16px !important;
+    }
+
+    /* ── Expander ───────────────────────────────────────── */
+    .streamlit-expanderHeader {
+        font-weight: 600;
+        color: #cbd5e1;
+        border-radius: 12px;
+    }
+
+    /* ── Sidebar ────────────────────────────────────────── */
+    section[data-testid="stSidebar"] {
+        background: rgba(8,11,20,0.95) !important;
+        border-right: 1px solid rgba(99,102,241,0.08) !important;
+    }
+
+    section[data-testid="stSidebar"] .block-container {
+        padding-top: 2rem;
+    }
+
+    /* ── Divider ────────────────────────────────────────── */
+    hr {
+        border-color: rgba(99,102,241,0.08) !important;
+        margin: 28px 0 !important;
+    }
+
+    /* ── Code blocks ────────────────────────────────────── */
+    .stCodeBlock {
+        border-radius: 14px !important;
+        border: 1px solid rgba(99,102,241,0.08) !important;
+    }
+
+    /* ── Progress bar ──────────────────────────────────── */
+    .stProgress > div > div > div {
+        background: linear-gradient(90deg, #6366f1, #8b5cf6) !important;
+        border-radius: 999px;
+    }
+
+    /* ── Success / Error / Info alerts ──────────────────── */
+    .stAlert {
+        border-radius: 12px !important;
+        border: 1px solid rgba(255,255,255,0.05) !important;
+    }
+
+    /* ── Footer branding ───────────────────────────────── */
+    .app-footer {
+        text-align: center;
+        padding: 32px 0 16px 0;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+    }
+
+    .app-footer a {
+        color: #6366f1;
+        text-decoration: none;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -212,6 +448,7 @@ def init_session_state():
         "chunk_records": None,
         "debug_records": None,
         "repo_model_name": None,
+        "chat_history": [],
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -223,14 +460,15 @@ def render_hero():
     <div class="hero-card">
         <div class="hero-title">🔍 AI Code Reviewer</div>
         <div class="hero-subtitle">
-            Review pasted code, uploaded files, or entire GitHub repositories with structured AI analysis, repo summaries, and Ask Repo Q&A.
+            Intelligent code analysis powered by LLMs — review single files, uploaded code,
+            or entire GitHub repositories with structured AI feedback, architecture summaries, and conversational Q&A.
         </div>
         <div class="badge-row">
-            <span class="badge">LangChain</span>
-            <span class="badge">Groq</span>
-            <span class="badge">GitHub Repo Review</span>
-            <span class="badge">RAG / FAISS</span>
-            <span class="badge">Single File + Full Repo</span>
+            <span class="badge">⚡ LangChain</span>
+            <span class="badge">🚀 Groq</span>
+            <span class="badge">🐙 GitHub Repo Review</span>
+            <span class="badge">🧠 RAG / FAISS</span>
+            <span class="badge">📄 Single File + Full Repo</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -266,7 +504,7 @@ def render_code_review_result(review, final_language):
 
     st.markdown(f"""
     <div class="review-card code-card">
-        <h4 style="margin-top:0;">Overall Understanding</h4>
+        <h4 style="margin-top:0;">💡 Overall Understanding</h4>
         <p>{review.understanding}</p>
     </div>
     """, unsafe_allow_html=True)
@@ -291,7 +529,7 @@ def render_code_review_result(review, final_language):
 
     st.markdown(f"""
     <div class="review-card explanation-card">
-        <h4 style="margin-top:0;">Human Explanation</h4>
+        <h4 style="margin-top:0;">📝 What Was Fixed & Why</h4>
         <p>{review.explanation}</p>
     </div>
     """, unsafe_allow_html=True)
@@ -313,14 +551,14 @@ def render_repo_summary(repo_summary):
 
     st.markdown(f"""
     <div class="review-card repo-card">
-        <h4 style="margin-top:0;">Overview</h4>
+        <h4 style="margin-top:0;">🌐 Overview</h4>
         <p>{repo_summary.overview}</p>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown(f"""
     <div class="review-card repo-card">
-        <h4 style="margin-top:0;">Architecture</h4>
+        <h4 style="margin-top:0;">🏗️ Architecture</h4>
         <p>{repo_summary.architecture}</p>
     </div>
     """, unsafe_allow_html=True)
@@ -681,16 +919,29 @@ with tab_ask:
         repo_metadata = st.session_state.repo_metadata or {}
         repo_name = st.session_state.repo_name
         vector_store = st.session_state.vector_store
+        selected_model_for_ask = st.session_state.repo_model_name or global_model_name
 
         st.markdown(f"""
         <div class="muted-note">
             Active repository: <b>{repo_metadata.get("owner", "Unknown")}/{repo_metadata.get("repo", "Unknown")}</b>
+            &nbsp;|&nbsp; Model: <b>{selected_model_for_ask}</b>
         </div>
         """, unsafe_allow_html=True)
 
-        repo_query = st.text_input(
-            "Ask something about this repository",
-            placeholder="e.g. Where is authentication handled? Which file manages API routes?",
+        # ── Chat history display ──────────────────────────────
+        for message in st.session_state.chat_history:
+            role = message.get("role", "user")
+            content = message.get("content", "")
+            if role == "user":
+                with st.chat_message("user"):
+                    st.markdown(content)
+            else:
+                with st.chat_message("assistant"):
+                    st.markdown(content)
+
+        # ── Chat input ────────────────────────────────────────
+        repo_query = st.chat_input(
+            "Ask something about this repository…",
             key="ask_repo_query"
         )
 
@@ -698,17 +949,23 @@ with tab_ask:
         with col_a:
             retrieve_only = st.button("🔎 Show Retrieved Chunks", use_container_width=True, key="ask_repo_retrieve")
         with col_b:
-            answer_question = st.button("🤖 Answer with AI", use_container_width=True, key="ask_repo_answer")
+            clear_history = st.button("🗑️ Clear Chat", use_container_width=True, key="ask_repo_clear")
 
+        if clear_history:
+            st.session_state.chat_history = []
+            st.rerun()
+
+        # ── Chunk retrieval (debug) ───────────────────────────
         if retrieve_only:
-            if not repo_query.strip():
-                st.warning("Please enter a question.")
+            query_for_retrieve = repo_query or ""
+            if not query_for_retrieve.strip():
+                st.warning("Please enter a question first.")
             else:
                 progress = st.progress(0)
                 with st.status("Retrieving repository context...", expanded=True) as status:
                     try:
                         st.write("**[1/2]** Searching vector store for relevant chunks...")
-                        docs = retrieve_relevant_chunks(vector_store, repo_query)
+                        docs = retrieve_relevant_chunks(vector_store, query_for_retrieve)
                         progress.progress(70)
 
                         st.write("**[2/2]** Formatting retrieved repository context...")
@@ -723,39 +980,52 @@ with tab_ask:
                         status.update(label="Chunk retrieval failed.", state="error")
                         st.error(f"Failed to retrieve repository chunks: {str(e)}")
 
-        if answer_question:
-            if not repo_query.strip():
-                st.warning("Please enter a question.")
-            else:
-                progress = st.progress(0)
-                with st.status("Answering repository question...", expanded=True) as status:
+        # ── AI Answer (streaming) ─────────────────────────────
+        if repo_query and repo_query.strip():
+            # Append user message to history
+            st.session_state.chat_history.append(
+                {"role": "user", "content": repo_query}
+            )
+
+            with st.chat_message("user"):
+                st.markdown(repo_query)
+
+            with st.chat_message("assistant"):
+                answer_placeholder = st.empty()
+                try:
+                    assistant = AssistantService(
+                        vector_store=vector_store,
+                        selected_model=selected_model_for_ask,
+                    )
+
+                    full_answer = ""
+                    for partial in assistant.ask(
+                        repo_name=repo_name,
+                        question=repo_query,
+                        chat_history=st.session_state.chat_history[:-1],  # exclude current message
+                    ):
+                        full_answer = partial
+                        answer_placeholder.markdown(full_answer)
+
+                    # Append assistant reply to history
+                    st.session_state.chat_history.append(
+                        {"role": "assistant", "content": full_answer}
+                    )
+
+                    # Show sources
                     try:
-                        st.write("**[1/3]** Retrieving relevant repository chunks...")
-                        progress.progress(35)
+                        sources = assistant.get_sources(question=repo_query)
+                        if sources:
+                            with st.expander("📎 Sources Used"):
+                                for src in sources:
+                                    st.markdown(
+                                        f"- `{src['file_path']}` · {src['language']} · chunk {src['chunk']}"
+                                    )
+                    except Exception:
+                        pass
 
-                        st.write("**[2/3]** Sending retrieved context to the LLM...")
-                        answer_text, retrieved_context = answer_repo_question(
-                            selected_model=st.session_state.repo_model_name or global_model_name,
-                            repo_name=repo_name,
-                            vector_store=vector_store,
-                            question=repo_query
-                        )
-                        progress.progress(85)
-
-                        st.write("**[3/3]** Finalizing repository answer...")
-                        progress.progress(100)
-                        status.update(label="Repository question answered successfully.", state="complete")
-
-                        st.markdown("### 🤖 AI Answer")
-                        st.markdown(f"""
-                        <div class="review-card answer-card">
-                            {answer_text}
-                        </div>
-                        """, unsafe_allow_html=True)
-
-                        with st.expander("📎 Retrieved Context Used"):
-                            st.code(retrieved_context, language="text")
-
-                    except Exception as e:
-                        status.update(label="Ask Repo failed.", state="error")
-                        st.error(f"Failed to answer repository question: {str(e)}")
+                except Exception as e:
+                    error_msg = f"Failed to answer repository question: {str(e)}"
+                    answer_placeholder.error(error_msg)
+                    # Remove the user message we just added so history stays consistent
+                    st.session_state.chat_history.pop()

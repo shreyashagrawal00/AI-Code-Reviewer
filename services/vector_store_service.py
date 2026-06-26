@@ -4,7 +4,6 @@ from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
 
 from services.embedding_service import get_embedding_model
-from utils.constants import VECTOR_TOP_K
 
 
 def build_chunk_documents(chunk_records: List[Dict]) -> List[Document]:

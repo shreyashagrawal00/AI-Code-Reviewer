@@ -1,6 +1,5 @@
 from langchain_huggingface import HuggingFaceEmbeddings
 from utils.constants import EMBEDDING_MODEL_NAME
-from utils.constants import EMBEDDING_MODEL_NAME
 
 
 _embedding_model = None
