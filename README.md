@@ -1,4 +1,4 @@
-﻿# 🔍 AI Code Reviewer
+# 🔍 AI Code Reviewer
 
 > **AI-powered code review tool** — review pasted code, uploaded files, or entire GitHub repositories with structured AI analysis, repository summaries, and a RAG-powered Ask Repo Q&A interface.
 
@@ -104,33 +104,32 @@ AI Code Reviewer/
 │
 ├── services/                     # Business logic and service layer
 │   ├── __init__.py
-│   ├── llm_service.py            # LLM builder (Groq + LangChain)
-│   ├── review_service.py         # Single-file code review orchestration
+│   ├── assistant_service.py      # Ask Repo AI Q&A streaming pipeline orchestrator
+│   ├── chunking_service.py       # Code chunking for RAG
+│   ├── citation_service.py       # Source attribution formatting and statistics
+│   ├── embedding_service.py      # Sentence-transformer embedding model loader
+│   ├── file_analysis_service.py  # Per-file AI analysis pipeline
 │   ├── file_service.py           # File upload handling, language detection, validation
 │   ├── github_service.py         # GitHub API calls (repo tree, file fetch)
-│   ├── repo_ingestion_service.py # Repo ingestion, file prioritization
-│   ├── file_analysis_service.py  # Per-file AI analysis pipeline
+│   ├── llm_service.py            # LLM builder (Groq + LangChain)
 │   ├── repo_analysis_service.py  # Repository-level AI summary pipeline
-│   ├── chunking_service.py       # Code chunking for RAG
-│   ├── embedding_service.py      # Sentence-transformer embedding model loader
-│   ├── vector_store_service.py   # FAISS vector store build and retrieval
-│   ├── repo_qa_service.py        # Ask Repo RAG Q&A pipeline
-│   └── parser_service.py         # LLM output JSON extraction and parsing
+│   ├── repo_ingestion_service.py # Repo ingestion, file prioritization
+│   ├── retriever_service.py      # Semantic retrieval from FAISS vector store
+│   ├── review_service.py         # Single-file code review orchestration
+│   └── vector_store_service.py   # FAISS vector store build and indexing
 │
 ├── prompts/                      # LangChain prompt templates
 │   ├── __init__.py
-│   ├── review_prompt.py          # Prompt for single code review
+│   ├── assistant_prompt.py       # Prompt for Ask Repo Q&A assistant
 │   ├── file_summary_prompt.py    # Prompt for per-file analysis
 │   ├── repo_summary_prompt.py    # Prompt for repository-level summary
-│   ├── repo_qa_prompt.py         # Prompt for Ask Repo Q&A
-│   └── module_summary_prompt.py  # Prompt for module summaries
+│   └── review_prompt.py          # Prompt for single code review
 │
 ├── schemas/                      # Pydantic output schemas
 │   ├── __init__.py
-│   ├── review_schema.py          # CodeReview, BugItem schemas
 │   ├── file_summary_schema.py    # FileSummary schema
 │   ├── repo_summary_schema.py    # RepoSummary, RepoIssue schemas
-│   └── module_summary_schema.py  # ModuleSummary schema
+│   └── review_schema.py          # CodeReview, BugItem schemas
 │
 ├── utils/                        # Shared utilities and constants
 │   ├── __init__.py
@@ -157,9 +156,6 @@ User Input (paste/upload)
         |
         v
   review_service.py        <- Build prompt, invoke LLM (Groq)
-        |
-        v
-  parser_service.py        <- Extract JSON, strip fences
         |
         v
   review_schema.py         <- Validate with Pydantic (CodeReview)
@@ -201,13 +197,16 @@ app.py (render)            <- Metrics, repo summary, file-by-file panels
 User Question
     |
     v
-vector_store_service.py    <- similarity_search(query, top_k=6)
+assistant_service.py       <- Coordinate Ask Repo query execution flow
     |
     v
-repo_qa_service.py         <- Format retrieved chunks -> build RAG prompt -> Groq LLM
+retriever_service.py       <- Retrieve relevant chunks from FAISS (top-k)
     |
     v
-app.py (render)            <- Display AI answer + show retrieved context
+llm_service.py             <- Send prompt context + history to streaming ChatGroq LLM
+    |
+    v
+app.py (render)            <- Stream response chunks to chat interface & format citations
 ```
 
 ---
@@ -215,13 +214,13 @@ app.py (render)            <- Display AI answer + show retrieved context
 ## 🔬 Modules In Depth
 
 ### `services/llm_service.py`
-Builds the LangChain `ChatGroq` LLM instance for a given model name. Reads `GROQ_API_KEY` from the environment.
+Builds the LangChain `ChatGroq` LLM instance for a given model name. Supports both synchronous and streaming formats via `build_llm()` and `build_streaming_llm()`. Reads `GROQ_API_KEY` from the environment.
 
 ### `services/review_service.py`
 Orchestrates the single-file code review:
 - Builds the review prompt with format instructions from the Pydantic schema
 - Invokes the Groq LLM via LangChain chain
-- Robustly extracts JSON from the raw response (handles code fences, leading text, `<think>` tags)
+- Robustly extracts and repairs JSON from the raw response (handles code fences, leading text, `<think>` reasoning tags using `json-repair`)
 - Validates and returns a typed `CodeReview` object
 
 ### `services/file_service.py`
@@ -261,20 +260,22 @@ Loads the **`sentence-transformers/all-MiniLM-L6-v2`** embedding model via `lang
 ### `services/vector_store_service.py`
 Manages the FAISS vector store lifecycle:
 - `build_vector_store()` — converts chunk records to LangChain `Document` objects and indexes them with FAISS
-- `retrieve_relevant_chunks()` — performs similarity search for top-k (default 6) relevant chunks
-- `format_retrieved_chunks()` — formats retrieved docs into a readable text block for the LLM context
 
-### `services/repo_qa_service.py`
-Implements the Ask Repo RAG pipeline:
-- Retrieves relevant chunks from FAISS
-- Constructs a context-enriched prompt using `repo_qa_prompt.py`
-- Calls the Groq LLM and returns the answer alongside the retrieved context
+### `services/retriever_service.py`
+Handles semantic search and context retrieval from the FAISS vector store:
+- `retrieve()` / `retrieve_with_scores()` — queries the vector store
+- `build_context()` — constructs structured text representation of retrieved documents for the LLM prompt
 
-### `services/parser_service.py`
-Shared JSON parsing utilities used across multiple services:
-- Strips `<think>...</think>` reasoning blocks from model output
-- Extracts valid JSON from code-fenced or mixed-text responses
-- Validates parsed data against Pydantic schemas
+### `services/assistant_service.py`
+Implements the streaming Ask Repo Q&A pipeline:
+- Integrates `RetrieverService` to query relevant chunks from FAISS
+- Builds chat prompt containing conversation history, context, and user question using `assistant_prompt.py`
+- Streams response chunks from the Groq model back to the UI
+
+### `services/citation_service.py`
+Performs formatting and source attribution for retrieved context:
+- Deduplicates sources by file and chunk
+- Generates clean Markdown lists detailing paths, languages, and chunk numbers
 
 ### `prompts/`
 All LangChain `ChatPromptTemplate` prompt builders live here, one per task:
@@ -284,8 +285,7 @@ All LangChain `ChatPromptTemplate` prompt builders live here, one per task:
 | `review_prompt.py` | Single code review with dynamic review_focus |
 | `file_summary_prompt.py` | Per-file analysis for repo ingestion |
 | `repo_summary_prompt.py` | Holistic repository-level summary |
-| `repo_qa_prompt.py` | RAG-powered Q&A about the repository |
-| `module_summary_prompt.py` | Module-level summaries (extended use) |
+| `assistant_prompt.py` | Prompt for the interactive Ask Repo Q&A assistant |
 
 ### `schemas/`
 Pydantic v2 models for strongly-typed, validated LLM output:
