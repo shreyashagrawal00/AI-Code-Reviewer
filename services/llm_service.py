@@ -17,7 +17,7 @@ def build_llm(selected_model: str) -> ChatGroq:
     validate_env()
     return ChatGroq(
         model=selected_model,
-        temperature=4.5
+        temperature=0
     )
 
 
