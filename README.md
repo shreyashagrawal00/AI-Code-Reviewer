@@ -1,678 +1,505 @@
-# AI Code Reviewer & GitHub Repository Analyzer
+﻿# 🔍 AI Code Reviewer
 
-An AI-powered **code review + GitHub repository analysis** platform built with **Streamlit, LangChain, Groq, and RAG**.
+> **AI-powered code review tool** — review pasted code, uploaded files, or entire GitHub repositories with structured AI analysis, repository summaries, and a RAG-powered Ask Repo Q&A interface.
 
-This project can:
-
-* **Review pasted code**
-* **Review uploaded code files**
-* **Analyze a GitHub repository**
-* **Summarize a repository file-by-file**
-* **Generate a repository-level architectural summary**
-* **Use chunking + embeddings + vector search (RAG)** for better understanding of larger repositories
-* Show **live progress updates in the UI** while repo files are being fetched, chunked, embedded, and analyzed
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.36%2B-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io)
+[![LangChain](https://img.shields.io/badge/LangChain-0.3%2B-1C3C3C?style=for-the-badge&logo=chainlink&logoColor=white)](https://langchain.com)
+[![Groq](https://img.shields.io/badge/Groq-LLM-F55036?style=for-the-badge)](https://groq.com)
+[![FAISS](https://img.shields.io/badge/FAISS-Vector_Store-0081CB?style=for-the-badge)](https://github.com/facebookresearch/faiss)
 
 ---
 
-# Features
+## 📋 Table of Contents
 
-## 1) Single Code Review
-
-Review code by either:
-
-* **Pasting code**
-* **Uploading a code file**
-
-The AI can:
-
-* explain what the code does
-* find bugs / risky patterns
-* fix the code
-* suggest improvements
-* return structured review output
-
----
-
-## 2) GitHub Repository Review
-
-Paste a **GitHub repository URL** and the app will:
-
-* fetch repository files
-* filter relevant code files
-* analyze important files one-by-one
-* create **file-level summaries**
-* generate a **repository-level summary**
-* show architecture, tech stack, strengths, issues, and suggestions
+- [Overview](#-overview)
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Project Structure](#-project-structure)
+- [Architecture & Data Flow](#-architecture--data-flow)
+- [Modules In Depth](#-modules-in-depth)
+- [Supported Languages](#-supported-languages)
+- [Available AI Models](#-available-ai-models)
+- [Environment Variables](#-environment-variables)
+- [Installation & Setup](#-installation--setup)
+- [Running the App](#-running-the-app)
+- [Configuration & Limits](#-configuration--limits)
+- [App Modes & UI Guide](#-app-modes--ui-guide)
+- [Contributing](#-contributing)
 
 ---
 
-## 3) File-by-File Repository Analysis
+## 🌟 Overview
 
-For each selected repository file, the app can generate:
+**AI Code Reviewer** is a full-stack AI tool built with **Streamlit** that lets developers review code at any scale from a single snippet to an entire GitHub repository. It uses **Groq's ultra-fast LLM API** via **LangChain** to produce structured, actionable code reviews with bug reports, corrected code, explanations, and optimization suggestions.
 
-* file purpose
-* summary of what the file does
-* key components / functions / classes
-* issues / bugs / weak practices
-* improvement suggestions
+For repository-level analysis, it ingests GitHub repos through the GitHub API, runs per-file AI analysis, generates a holistic repository summary, chunks all code for vector search using **FAISS**, and enables a natural-language **Ask Repo Q&A** feature powered by Retrieval-Augmented Generation (RAG).
 
 ---
 
-## 4) RAG for Larger Repositories
+## ✨ Features
 
-For bigger repositories, the project uses a **RAG pipeline**:
+### 💻 Code Review Tab
+- **Paste code** directly or **upload a file** (supports 19+ file extensions)
+- Select the **programming language** or use auto-detection from the filename
+- Provide an optional **task description** to give the AI context
+- Choose a **review focus**: `All`, `Bug Fix Only`, `Explain Only`, or `Optimize Only`
+- Receive a structured review with:
+  - 📖 **Overall understanding** of what the code does
+  - 🐛 **Bug/issue list** with severity levels (`High`, `Medium`, `Low`) and fix instructions
+  - 🛠 **Corrected code** block with all fixes applied
+  - 🗣 **Human-friendly explanation** of all changes
+  - 🚀 **Extra suggestions** for best practices and optimizations
+- Live **progress bar** and **status updates** during review
 
-* fetch repository files
-* split them into chunks
-* create embeddings
-* store them in a vector database (FAISS)
-* retrieve the most relevant chunks when needed
+### 📦 Repo Review Tab
+- Analyze a **full GitHub repository** by URL (public repos, no auth required)
+- **7-step analysis pipeline** with real-time progress:
+  1. Validate and fetch repository files via GitHub API
+  2. Run **file-by-file AI analysis** with per-file summaries
+  3. Generate a **repository-level summary** with architecture, tech stack, and insights
+  4. **Chunk** all code files for retrieval
+  5. Build a **FAISS vector store** from embeddings
+- Repository metrics dashboard: repo name, files analyzed, total characters, chunks created
+- **Repository Overview**: overview, architecture, tech stack, important files, strengths, issues, and a final verdict
+- **File-by-File Review**: collapsible per-file panels with language, purpose, key components, issues, and suggestions
+- **Session persistence**: previously analyzed repo stays visible until a new one is loaded
 
-This makes the repo analysis more scalable than sending the whole repo to the LLM at once.
+### 💬 Ask Repo Tab
+- Ask **natural language questions** about the analyzed repository
+- Two interaction modes:
+  - 🔎 **Show Retrieved Chunks** — display the raw RAG context retrieved from the vector store
+  - 🤖 **Answer with AI** — send retrieved context + question to the LLM for a comprehensive answer
+- Powered by **FAISS similarity search** + **sentence-transformers** embeddings
+- Displays the retrieved context used alongside the AI's answer for full transparency
 
----
-
-## 5) Better Streamlit UI
-
-The app is designed to show **what is happening in the background**, such as:
-
-* fetching repository files
-* selecting important files
-* chunking files
-* generating embeddings
-* analyzing files one-by-one
-* generating the final repo summary
-
-This makes the app feel much more transparent and interactive.
-
----
-
-# Tech Stack
-
-## Frontend / UI
-
-* **Streamlit**
-
-## LLM / AI
-
-* **Groq**
-* **LangChain**
-
-## Repository / File Analysis
-
-* **GitHub API / raw GitHub file fetching**
-* **Pydantic schemas for structured outputs**
-
-## RAG / Retrieval
-
-* **Sentence Transformers**
-* **FAISS**
-* **LangChain text splitting / document handling**
-
-## Language / Backend
-
-* **Python 3.11+**
+### ⚙️ Global Settings (Sidebar)
+- Switch between **Groq models** at any time
+- Enable **Debug Mode** to view raw LLM outputs and file processing details
 
 ---
 
-# Project Structure
+## 🛠 Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **UI Framework** | [Streamlit](https://streamlit.io) >= 1.36.0 |
+| **LLM Provider** | [Groq](https://groq.com) (via LangChain) |
+| **LLM Orchestration** | [LangChain](https://langchain.com) >= 0.3.0 |
+| **Embeddings** | [sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) |
+| **Vector Store** | [FAISS](https://github.com/facebookresearch/faiss) (CPU) |
+| **Data Validation** | [Pydantic](https://docs.pydantic.dev) v2 |
+| **GitHub API** | [requests](https://requests.readthedocs.io) (GitHub REST API v3) |
+| **Tokenization** | [tiktoken](https://github.com/openai/tiktoken) |
+| **Environment** | [python-dotenv](https://github.com/theskumar/python-dotenv) |
+
+---
+
+## 📁 Project Structure
+
+```
+AI Code Reviewer/
+│
+├── app.py                        # Main Streamlit application entry point
+│
+├── services/                     # Business logic and service layer
+│   ├── __init__.py
+│   ├── llm_service.py            # LLM builder (Groq + LangChain)
+│   ├── review_service.py         # Single-file code review orchestration
+│   ├── file_service.py           # File upload handling, language detection, validation
+│   ├── github_service.py         # GitHub API calls (repo tree, file fetch)
+│   ├── repo_ingestion_service.py # Repo ingestion, file prioritization
+│   ├── file_analysis_service.py  # Per-file AI analysis pipeline
+│   ├── repo_analysis_service.py  # Repository-level AI summary pipeline
+│   ├── chunking_service.py       # Code chunking for RAG
+│   ├── embedding_service.py      # Sentence-transformer embedding model loader
+│   ├── vector_store_service.py   # FAISS vector store build and retrieval
+│   ├── repo_qa_service.py        # Ask Repo RAG Q&A pipeline
+│   └── parser_service.py         # LLM output JSON extraction and parsing
+│
+├── prompts/                      # LangChain prompt templates
+│   ├── __init__.py
+│   ├── review_prompt.py          # Prompt for single code review
+│   ├── file_summary_prompt.py    # Prompt for per-file analysis
+│   ├── repo_summary_prompt.py    # Prompt for repository-level summary
+│   ├── repo_qa_prompt.py         # Prompt for Ask Repo Q&A
+│   └── module_summary_prompt.py  # Prompt for module summaries
+│
+├── schemas/                      # Pydantic output schemas
+│   ├── __init__.py
+│   ├── review_schema.py          # CodeReview, BugItem schemas
+│   ├── file_summary_schema.py    # FileSummary schema
+│   ├── repo_summary_schema.py    # RepoSummary, RepoIssue schemas
+│   └── module_summary_schema.py  # ModuleSummary schema
+│
+├── utils/                        # Shared utilities and constants
+│   ├── __init__.py
+│   ├── constants.py              # All app-wide constants and config values
+│   └── language_utils.py         # Language detection helpers
+│
+├── requirements.txt              # Python dependencies
+├── .env.example                  # Environment variable template
+├── .env                          # Local secrets (not committed to git)
+└── .gitignore                    # Git ignore rules
+```
+
+---
+
+## 🏗 Architecture & Data Flow
+
+### Code Review Flow
+
+```
+User Input (paste/upload)
+        |
+        v
+  file_service.py          <- Validate, decode, detect language
+        |
+        v
+  review_service.py        <- Build prompt, invoke LLM (Groq)
+        |
+        v
+  parser_service.py        <- Extract JSON, strip fences
+        |
+        v
+  review_schema.py         <- Validate with Pydantic (CodeReview)
+        |
+        v
+  app.py (render)          <- Display structured results in Streamlit UI
+```
+
+### Repository Review Flow
+
+```
+GitHub URL
+    |
+    v
+github_service.py          <- Parse URL, fetch repo tree, download files
+    |
+    v
+repo_ingestion_service.py  <- Prioritize and truncate files, build metadata
+    |
+    v
+file_analysis_service.py   <- Per-file AI summaries (batched LLM calls)
+    |
+    v
+repo_analysis_service.py   <- Holistic repo summary via LLM
+    |
+    v
+chunking_service.py        <- Chunk code files (1800 chars, 250 overlap)
+    |
+    v
+vector_store_service.py    <- Embed chunks into FAISS index (all-MiniLM-L6-v2)
+    |
+    v
+app.py (render)            <- Metrics, repo summary, file-by-file panels
+```
+
+### Ask Repo (RAG) Flow
+
+```
+User Question
+    |
+    v
+vector_store_service.py    <- similarity_search(query, top_k=6)
+    |
+    v
+repo_qa_service.py         <- Format retrieved chunks -> build RAG prompt -> Groq LLM
+    |
+    v
+app.py (render)            <- Display AI answer + show retrieved context
+```
+
+---
+
+## 🔬 Modules In Depth
+
+### `services/llm_service.py`
+Builds the LangChain `ChatGroq` LLM instance for a given model name. Reads `GROQ_API_KEY` from the environment.
+
+### `services/review_service.py`
+Orchestrates the single-file code review:
+- Builds the review prompt with format instructions from the Pydantic schema
+- Invokes the Groq LLM via LangChain chain
+- Robustly extracts JSON from the raw response (handles code fences, leading text, `<think>` tags)
+- Validates and returns a typed `CodeReview` object
+
+### `services/file_service.py`
+Handles file uploads and code input:
+- `safe_decode_uploaded_file()` — decodes bytes with UTF-8 fallback to latin-1
+- `detect_language_from_filename()` — maps file extension to language name
+- `validate_code_size()` — enforces the `MAX_CODE_CHARS` (30,000) limit
+- `default_task_description_if_empty()` — provides a fallback task description
+
+### `services/github_service.py`
+Interfaces with the GitHub REST API:
+- `parse_github_repo_url()` — extracts owner/repo from any GitHub URL
+- `get_code_files_from_repo()` — recursively fetches the file tree, filtering by allowed extensions and ignoring noise directories
+- `fetch_file_content()` — downloads raw file content by path
+
+### `services/repo_ingestion_service.py`
+Prepares a repository for analysis:
+- **Priority scoring**: important files (`app.py`, `main.py`, `routes.py`, etc.) are ranked first
+- **File capping**: up to `MAX_REPO_FILES` (20) files are selected
+- **Character limits**: per-file cap of `MAX_CHARS_PER_FILE` (12,000 chars) and total cap of `MAX_TOTAL_REPO_CHARS` (120,000 chars)
+
+### `services/file_analysis_service.py`
+Runs AI analysis on each repository file individually to produce structured `FileSummary` objects (language, purpose, summary, key components, issues, suggestions).
+
+### `services/repo_analysis_service.py`
+Synthesizes all per-file summaries into a holistic `RepoSummary` (overview, architecture, tech stack, important files, strengths, repo-level issues, suggestions, final verdict).
+
+### `services/chunking_service.py`
+Splits repository file content into overlapping chunks for RAG:
+- Chunk size: **1,800 characters**
+- Overlap: **250 characters**
+- Each chunk records its `file_path`, `language`, and `chunk_index`
+
+### `services/embedding_service.py`
+Loads the **`sentence-transformers/all-MiniLM-L6-v2`** embedding model via `langchain-huggingface`. Cached for reuse across requests.
+
+### `services/vector_store_service.py`
+Manages the FAISS vector store lifecycle:
+- `build_vector_store()` — converts chunk records to LangChain `Document` objects and indexes them with FAISS
+- `retrieve_relevant_chunks()` — performs similarity search for top-k (default 6) relevant chunks
+- `format_retrieved_chunks()` — formats retrieved docs into a readable text block for the LLM context
+
+### `services/repo_qa_service.py`
+Implements the Ask Repo RAG pipeline:
+- Retrieves relevant chunks from FAISS
+- Constructs a context-enriched prompt using `repo_qa_prompt.py`
+- Calls the Groq LLM and returns the answer alongside the retrieved context
+
+### `services/parser_service.py`
+Shared JSON parsing utilities used across multiple services:
+- Strips `<think>...</think>` reasoning blocks from model output
+- Extracts valid JSON from code-fenced or mixed-text responses
+- Validates parsed data against Pydantic schemas
+
+### `prompts/`
+All LangChain `ChatPromptTemplate` prompt builders live here, one per task:
+
+| File | Purpose |
+|---|---|
+| `review_prompt.py` | Single code review with dynamic review_focus |
+| `file_summary_prompt.py` | Per-file analysis for repo ingestion |
+| `repo_summary_prompt.py` | Holistic repository-level summary |
+| `repo_qa_prompt.py` | RAG-powered Q&A about the repository |
+| `module_summary_prompt.py` | Module-level summaries (extended use) |
+
+### `schemas/`
+Pydantic v2 models for strongly-typed, validated LLM output:
+
+| Schema | Fields |
+|---|---|
+| `CodeReview` | `language`, `understanding`, `bugs` (List[BugItem]), `corrected_code`, `explanation`, `suggestions` |
+| `BugItem` | `title`, `severity`, `explanation`, `fix` |
+| `FileSummary` | `file_path`, `language`, `purpose`, `summary`, `key_components`, `issues`, `suggestions` |
+| `RepoSummary` | `overview`, `architecture`, `tech_stack`, `important_files`, `strengths`, `issues`, `suggestions`, `final_verdict` |
+| `RepoIssue` | `title`, `severity`, `explanation`, `affected_files`, `fix` |
+
+---
+
+## 🌐 Supported Languages
+
+| Language | Extensions |
+|---|---|
+| Python | `.py` |
+| JavaScript | `.js`, `.jsx` |
+| TypeScript | `.ts`, `.tsx` |
+| Java | `.java` |
+| C | `.c` |
+| C++ | `.cpp`, `.cc`, `.cxx` |
+| C# | `.cs` |
+| Go | `.go` |
+| Ruby | `.rb` |
+| PHP | `.php` |
+| Rust | `.rs` |
+| Kotlin | `.kt` |
+| Swift | `.swift` |
+| JSON | `.json` |
+| Markdown | `.md` |
+| Text | `.txt` |
+
+---
+
+## 🤖 Available AI Models
+
+| Model | Description |
+|---|---|
+| `qwen/qwen3-32b` | (Default) High-quality, strong reasoning |
+| `llama-3.3-70b-versatile` | Meta's powerful 70B model, well-rounded |
+| `llama-3.1-8b-instant` | Fastest, lightweight for quick reviews |
+
+> All models are served by [Groq](https://groq.com) for ultra-low latency inference.
+
+---
+
+## 🔐 Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `GROQ_API_KEY` | Yes | Your Groq API key from [console.groq.com](https://console.groq.com) |
+
+Copy `.env.example` to `.env` and fill in your key:
 
 ```bash
-AI_Code_Reviewer/
-│
-├── app.py
-├── requirements.txt
-├── .env
-├── .env.example
-├── .gitignore
-├── README.md
-│
-├── prompts/
-│   ├── review_prompt.py
-│   ├── file_summary_prompt.py
-│   └── repo_summary_prompt.py
-│
-├── schemas/
-│   ├── review_schema.py
-│   ├── file_summary_schema.py
-│   └── repo_summary_schema.py
-│
-├── services/
-│   ├── llm_service.py
-│   ├── review_service.py
-│   ├── file_service.py
-│   ├── github_service.py
-│   ├── repo_ingestion_service.py
-│   ├── file_analysis_service.py
-│   ├── repo_analysis_service.py
-│   ├── chunking_service.py
-│   ├── embedding_service.py
-│   └── vector_store_service.py
-│
-├── utils/
-│   └── constants.py
-│
-├── outputs/
-│   └── (optional generated reports / exports)
-│
-└── faiss_index/
-    └── (optional local vector DB files)
+cp .env.example .env
 ```
 
----
-
-# Folder / File Explanation
-
-## `app.py`
-
-Main Streamlit application.
-
-Handles:
-
-* UI layout
-* mode selection (code review / GitHub repo review)
-* progress updates
-* displaying code review results
-* displaying file-by-file repo summaries
-* displaying repository-level summary
-
----
-
-## `prompts/`
-
-Contains all LLM prompts.
-
-### `review_prompt.py`
-
-Prompt for **single code review**.
-
-### `file_summary_prompt.py`
-
-Prompt for **repository file-by-file analysis**.
-
-### `repo_summary_prompt.py`
-
-Prompt for **repository-level summary generation** using:
-
-* repo metadata
-* file summaries
-* repo context
-
----
-
-## `schemas/`
-
-Contains Pydantic schemas for structured AI output.
-
-### `review_schema.py`
-
-Schema for single code review output.
-
-Example fields:
-
-* understanding
-* bugs
-* corrected_code
-* explanation
-* suggestions
-
-### `file_summary_schema.py`
-
-Schema for one repository file summary.
-
-Example fields:
-
-* file_path
-* language
-* purpose
-* summary
-* key_components
-* issues
-* suggestions
-
-### `repo_summary_schema.py`
-
-Schema for repository-level analysis.
-
-Example fields:
-
-* repo_name
-* overview
-* architecture
-* tech_stack
-* important_files
-* strengths
-* issues
-* suggestions
-* final_verdict
-
----
-
-## `services/`
-
-Contains all application logic.
-
-### `llm_service.py`
-
-Creates the LLM instance and returns formatting instructions / parsers if needed.
-
-Responsibilities:
-
-* validate `GROQ_API_KEY`
-* build Groq LLM client
-* expose schema formatting instructions
-
----
-
-### `review_service.py`
-
-Handles **single pasted/uploaded code review**.
-
-Responsibilities:
-
-* run the code review prompt
-* parse LLM JSON output safely
-* clean code fences / `<think>` blocks if present
-* return a validated `CodeReview` object
-
----
-
-### `file_service.py`
-
-Handles uploaded file utilities.
-
-Responsibilities:
-
-* safely decode uploaded files
-* detect language from file extension
-* validate file size
-* provide fallback task descriptions
-
----
-
-### `github_service.py`
-
-Handles GitHub repository fetching.
-
-Responsibilities:
-
-* parse GitHub repo URL
-* fetch repo tree / files
-* filter code files
-* ignore unwanted folders/files
-* fetch raw file content
-
----
-
-### `repo_ingestion_service.py`
-
-Builds the **repository file set** for analysis.
-
-Responsibilities:
-
-* select important repo files
-* apply limits (max files / max chars)
-* infer language from extension
-* return `file_records` in a consistent format
-
-Typical `file_record` structure:
-
-```python
-{
-    "file_path": "backend/server.js",
-    "language": "JavaScript",
-    "content": "..."
-}
+`.env.example`:
+```env
+GROQ_API_KEY=your_groq_api_key_here
 ```
 
----
-
-### `file_analysis_service.py`
-
-Analyzes repository files **one by one**.
-
-Responsibilities:
-
-* run file summary prompt for each file
-* safely extract JSON from model output
-* parse into `FileSummary`
-* store debug logs per file
-* return all file summaries
+> **Note:** A GitHub token is not required for public repositories. For private repos or to avoid rate limits, you can extend `github_service.py` to include a `GITHUB_TOKEN` header.
 
 ---
 
-### `repo_analysis_service.py`
+## 🚀 Installation & Setup
 
-Generates **repository-level summary** from:
+### Prerequisites
 
-* repo metadata
-* selected file list
-* file-level summaries
+- Python **3.10+**
+- A free [Groq API key](https://console.groq.com)
 
-Responsibilities:
+### Steps
 
-* build repo context
-* combine file summaries
-* run repo summary prompt
-* parse final structured repo summary
-
----
-
-### `chunking_service.py`
-
-Used for **RAG**.
-
-Responsibilities:
-
-* split repo files into chunks
-* attach metadata like file path / language / chunk index
-* keep chunk size under control
-
----
-
-### `embedding_service.py`
-
-Creates embeddings for repository chunks.
-
-Responsibilities:
-
-* load embedding model
-* generate embeddings for chunks
-
----
-
-### `vector_store_service.py`
-
-Stores and queries repository chunks using FAISS.
-
-Responsibilities:
-
-* create FAISS vector store
-* add chunked documents
-* run similarity search for repo Q&A / context retrieval
-
----
-
-## `utils/constants.py`
-
-Stores all constants used across the project.
-
-Examples:
-
-* supported file extensions
-* language mappings
-* ignored repo folders/files
-* chunk sizes
-* model options
-* repo limits
-
----
-
-# How the App Works
-
-# A) Single Code Review Flow
-
-## Input
-
-User either:
-
-* pastes code
-* uploads a file
-
-## Flow
-
-1. detect / choose language
-2. collect task description and review focus
-3. send prompt to LLM
-4. parse JSON response into `CodeReview`
-5. show:
-
-   * understanding
-   * bugs
-   * corrected code
-   * explanation
-   * suggestions
-
----
-
-# B) GitHub Repository Review Flow
-
-## Input
-
-User pastes a GitHub repository URL
-
-## Flow
-
-1. parse GitHub repo URL
-2. fetch repository file tree
-3. filter important code files
-4. fetch file contents
-5. generate **file-by-file summaries**
-6. combine file summaries + repo metadata
-7. generate **repository-level summary**
-8. optionally build chunked vector index for RAG
-9. show results in UI
-
----
-
-# C) RAG Flow for Larger Repositories
-
-## Why RAG is needed
-
-A large repository may have:
-
-* too many files
-* too much code
-* too many tokens for one prompt
-
-So instead of sending the whole repo directly to the LLM:
-
-## RAG pipeline
-
-1. fetch repository files
-2. split into chunks
-3. create embeddings
-4. store in FAISS
-5. retrieve the most relevant chunks for a repo question / analysis step
-
-This helps the model analyze bigger repositories more intelligently.
-
----
-
-# JSON Parsing Problem & Robust Fix
-
-Some LLMs may return output like:
-
-```text
-<think>...</think>
-{ valid json }
-extra text...
-```
-
-This project handles that by:
-
-* removing `<think>...</think>`
-* removing code fences
-* extracting the **first balanced JSON object**
-* validating with Pydantic schemas
-
-This makes the app much more stable.
-
----
-
-# Installation
-
-## 1) Clone the repository
+**1. Clone the repository**
 
 ```bash
-git clone https://github.com/your-username/AI_Code_Reviewer.git
-cd AI_Code_Reviewer
+git clone https://github.com/your-username/ai-code-reviewer.git
+cd ai-code-reviewer
 ```
 
-## 2) Create virtual environment
-
-### Windows
+**2. Create and activate a virtual environment**
 
 ```bash
+# Windows
 python -m venv .venv
 .venv\Scripts\activate
-```
 
-### Mac / Linux
-
-```bash
-python3 -m venv .venv
+# macOS / Linux
+python -m venv .venv
 source .venv/bin/activate
 ```
 
----
-
-## 3) Install dependencies
+**3. Install dependencies**
 
 ```bash
 pip install -r requirements.txt
 ```
 
----
+**4. Configure environment variables**
 
-## 4) Create `.env`
-
-Create a `.env` file in the project root:
-
-```env
-GROQ_API_KEY=your_groq_api_key_here
+```bash
+cp .env.example .env
+# Edit .env and add your GROQ_API_KEY
 ```
 
 ---
 
-## 5) Run the app
+## ▶️ Running the App
 
 ```bash
 streamlit run app.py
 ```
 
+The app will open in your browser at `http://localhost:8501`.
+
 ---
 
-# Example `requirements.txt`
+## ⚙️ Configuration & Limits
 
-A typical version for this project may include:
+All configurable constants live in `utils/constants.py`:
 
-```txt
-streamlit
-python-dotenv
-pydantic
-requests
+| Constant | Default | Description |
+|---|---|---|
+| `MAX_CODE_CHARS` | 30,000 | Max characters for single-file review |
+| `MAX_REPO_FILES` | 20 | Max files fetched from a GitHub repo |
+| `MAX_CHARS_PER_FILE` | 12,000 | Max characters read per repo file |
+| `MAX_TOTAL_REPO_CHARS` | 120,000 | Total character budget for full repo |
+| `CHUNK_SIZE` | 1,800 | Characters per RAG chunk |
+| `CHUNK_OVERLAP` | 250 | Overlap between adjacent chunks |
+| `VECTOR_TOP_K` | 6 | Number of chunks retrieved for RAG |
+| `EMBEDDING_MODEL_NAME` | all-MiniLM-L6-v2 | HuggingFace embedding model |
 
-langchain
-langchain-core
-langchain-groq
-langchain-community
+### File Prioritization
 
-faiss-cpu
-sentence-transformers
-tiktoken
+When analyzing a repo, files are ranked by importance before the cap is applied:
+
+| Priority | Criteria |
+|---|---|
+| 0 (Highest) | Priority filenames: `app.py`, `main.py`, `routes.py`, `config.py`, etc. |
+| 1 | Files with `readme` in the path |
+| 2 | Files with `app` or `main` in the path |
+| 3 | Files with `service`, `api`, or `route` in the path |
+| 4 | Files with `model` or `schema` in the path |
+| 5 | Files with `utils` or `helper` in the path |
+| 10 (Lowest) | All other files |
+
+### Ignored Directories and Files
+
+The GitHub ingestion pipeline automatically skips:
+
+**Directories:** `node_modules`, `.git`, `dist`, `build`, `.next`, `__pycache__`, `.venv`, `venv`, `env`, `.idea`, `.vscode`, `coverage`, `target`, `out`, `.turbo`, `.cache`
+
+**Files:** `.gitignore`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `poetry.lock`, `Pipfile.lock`, `LICENSE`
+
+---
+
+## 🖥 App Modes & UI Guide
+
+```
++-------------------------------------------------------------+
+|  🔍 AI Code Reviewer                                        |
+|  -----------------------------------------------------------  |
+|  [ 💻 Code Review ] [ 📦 Repo Review ] [ 💬 Ask Repo ]     |
++-------------------------------------------------------------+
 ```
 
-You can add or pin versions based on your environment.
+### Sidebar
+- **Groq Model** — select the LLM to use for all operations
+- **Debug Mode** — reveals raw LLM outputs and processing details
+
+### 💻 Code Review Tab
+1. Select language (or Auto Detect)
+2. Optionally describe what the code should do
+3. Choose a review focus
+4. Paste code or upload a file
+5. Click **🚀 Review My Code**
+
+### 📦 Repo Review Tab
+1. Paste a GitHub repository URL (e.g. `https://github.com/username/repo`)
+2. Click **🚀 Analyze Repository**
+3. Watch the 7-step analysis pipeline run in real-time
+4. Browse the repo metrics, overview, and file-by-file review panels
+
+### 💬 Ask Repo Tab
+> Requires a repo to be analyzed first in the **Repo Review** tab.
+
+1. Type a natural language question about the repo
+2. Click **🔎 Show Retrieved Chunks** to inspect the RAG context, or
+3. Click **🤖 Answer with AI** for a full AI-generated answer
 
 ---
 
-# Supported Review Modes
+## 🤝 Contributing
 
-## Code Review
+Contributions, issues, and feature requests are welcome!
 
-* paste code
-* upload file
-* choose language
-* choose review focus:
-
-  * all
-  * bug fix only
-  * explain only
-  * optimize only
-
-## GitHub Repo Review
-
-* paste repo URL
-* analyze important files
-* generate file summaries
-* generate repo summary
-* optionally use vector retrieval for larger repos
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ---
 
-# Example Output Sections
+## 📄 License
 
-## Single Code Review Output
-
-* Understanding
-* Bugs Found
-* Corrected Code
-* Explanation
-* Suggestions
-
-## GitHub Repo Review Output
-
-* Repository Overview
-* Architecture
-* Tech Stack
-* Important Files
-* Strengths
-* Issues
-* Suggestions
-* Final Verdict
-* File-by-File Review
+This project is open source. See the [LICENSE](LICENSE) file for details.
 
 ---
 
-# Future Improvements
-
-* chat with repository using vector retrieval
-* export repo review as PDF / Markdown
-* support private GitHub repos via token
-* multi-file local folder upload
-* repository dependency graph visualization
-* architecture diagram generation
-* severity filtering for file issues
-* test generation for selected files
-* code smell / security-focused review modes
-
----
-
-# Example Use Cases
-
-* review your DSA / college code quickly
-* analyze hackathon repositories
-* inspect open-source GitHub projects
-* understand unfamiliar repos faster
-* prepare for code reviews / interviews
-* generate project documentation summaries
-
----
-
-# Known Limitations
-
-* very large repositories still require aggressive file filtering
-* LLM quality depends on chosen model
-* GitHub rate limits may affect public repo fetching
-* if prompts / schemas mismatch, parsing can fail
-* file selection quality affects repo summary quality
-
----
-
-# Author
-
-**Shreyash Agrawal**
-
-If you use this project, feel free to extend it with:
-
-* better repo ranking
-* architecture graphing
-* multi-agent analysis
-* deeper RAG-based repo Q&A
-
----
-
-## Quick Summary
-
-This project is a **Streamlit-based AI code review platform** that can review **single code files** as well as **entire GitHub repositories**. It uses **Groq + LangChain** for structured analysis and **RAG + FAISS** to scale repository understanding for larger projects.
+Built with love using Streamlit · LangChain · Groq · FAISS
